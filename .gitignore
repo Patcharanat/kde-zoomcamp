@@ -1,0 +1,14 @@
+credentials
+terraform.tfstate.backup
+terraform.tfstate
+variables_tf_backup.txt
+.terraform.lock.hcl
+.terraform
+
+zoomcamp
+
+de_zoomcamp.ipynb
+
+logs
+plugins
+config
