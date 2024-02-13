@@ -12,6 +12,10 @@
     - 4.1 [GroupBy in Spark](#41-groupby-in-spark)
     - 4.2 [Joins in Spark](#42-joins-in-spark)
 5. [Resilient Distributed Datasets (RDD)](#5-resilient-distributed-datasets-rdd)
+6. [Spark with Cloud](#6-spark-with-cloud)
+    - 6.1 [Connecting to GCS](#61-connecting-to-gcs)
+    - 6.2 [Creating a Local Spark Cluster](#62-creating-a-local-spark-cluster)
+    - 6.3 [Setting up a Dataproc Cluster](#63-setting-up-a-dataproc-cluster)
 
 ## 1. First Look PySpark
 - Repartition: to increase the number of output file partitions -> good for scaling processing node (parallelism)
@@ -194,8 +198,69 @@ df_join = df1.join(df2, on=["key1", "key2"], how="outer") # this line is lazy ex
 - **Broadcasting** in Joining happens when a large dataset joined with a small dataset making the small dataset broadcasted to every executors, resulting in one stage of joining operation with reshuffling removed. It gives a better performance (faster by one stage).
 - we save some intermediate output to reduce processing costs when we need to replicate work, we called it **materialize**.
 
- ## 5. Resilient Distributed Datasets (RDDs)
+## 5. Resilient Distributed Datasets (RDDs)
 - Spark is built on top of *RDD* which is involved to Spark low-level operation, but we use spark via API, so the abstraction of RDD is lesser important in usage but not useless to know.
-- collection of objects.
+- Dataframe has a schema but, RDD has collection of objects.
+    - .rdd attribute in spark represents data in a list of rows
 - Map and Reduce are work within RDD layer
-- 
+    - map -> map the value (element) to the key
+    - reduce -> reduce multiple elements in the same key to one element per key (e.g. groupby)
+- mapPartition
+    - partition (RDD) -> mapPartition -> partition (RDD)
+
+## 6. Spark with Cloud
+
+### 6.1 Connecting to GCS
+- copying the local file to GCS with bash
+    ```bash
+    # to copy folder, use '-r' flag means recursive
+    # to upload multiple file, use '-m' means multi-threaded (parallel) using all cpu core
+    gsutil -m cp -r local_folder/ gs://bucket_name/path/target_folder
+    ```
+- connecting to GCS with Spark in **LOCAL**
+    - using ".jar" file to specifically tell spark how to connect with GCP
+    - gcs/gcs-connector/hadoop
+    ```bash
+    gsutil cp gs://hadoop-lib/gcs/gcs-connector-hadoop3-X.X.X.jar .
+    ```
+    - spark 
+    ```python
+    from pyspark.sql import SparkSession
+    from pyspark.conf import SparkConf
+    from pyspark.context import SparkContext
+
+    credentials_location = "local/path/to/gcp_credentials.json"
+    
+    # setting config
+    conf = SparkConf() \
+        .setMaster('local[*]') \
+        .setAppName('test') \
+        .set("spark.jars", "./lib/gcs-connector-hadoop3-2.2.5.jar") \
+        .set("spark.hadoop.google.cloud.auth.service.account.enable", "true") \
+        .set("spark.hadoop.google.cloud.auth.service.account.json.keyfile", credentials_location)
+
+    sc = SparkContext(conf=conf)
+
+    hadoop_conf = sc._jsc.hadoopConfiguration()
+
+    hadoop_conf.set("fs.AbstractFileSystem.gs.impl",  "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS")
+    hadoop_conf.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
+    hadoop_conf.set("fs.gs.auth.service.account.json.keyfile", credentials_location)
+    hadoop_conf.set("fs.gs.auth.service.account.enable", "true")
+
+    # initiate session
+    spark = SparkSession.builder \
+            .config(conf=sc.getConf()) \
+            .getOrCreate()
+
+    df = spark.read.parquet('gs://bucket_name/pq/green/*/*')
+
+    df.count()
+    ```
+- But, when we use google managed service for spark, we don't have manually config .jar file
+ 
+### 6.2 Creating a Local Spark Cluster
+
+
+
+### 6.3 Setting up a Dataproc Cluster
