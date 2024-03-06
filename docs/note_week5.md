@@ -15,7 +15,8 @@
 6. [Spark with Cloud](#6-spark-with-cloud)
     - 6.1 [Connecting to GCS](#61-connecting-to-gcs)
     - 6.2 [Creating a Local Spark Cluster](#62-creating-a-local-spark-cluster)
-    - 6.3 [Setting up a Dataproc Cluster](#63-setting-up-a-dataproc-cluster)
+    - 6.3 [Setting up a Dataproc Cluster](#63-setting-up-a-dataproc-cluster-running-spark-in-cloud)
+    - 6.4 [Connecting Spark to BigQuery](#64-connecting-spark-to-bigquery)
 
 ## 1. First Look PySpark
 - Repartition: to increase the number of output file partitions -> good for scaling processing node (parallelism)
@@ -211,6 +212,7 @@ df_join = df1.join(df2, on=["key1", "key2"], how="outer") # this line is lazy ex
 ## 6. Spark with Cloud
 
 ### 6.1 Connecting to GCS
+- This is required if you want to use spark cluster to access GCS from VM that don't have any prior configuration or local machine. If the process is done by dataproc, these following configuration are unnecessary.
 - copying the local file to GCS with bash
     ```bash
     # to copy folder, use '-r' flag means recursive
@@ -260,7 +262,60 @@ df_join = df1.join(df2, on=["key1", "key2"], how="outer") # this line is lazy ex
 - But, when we use google managed service for spark, we don't have manually config .jar file
  
 ### 6.2 Creating a Local Spark Cluster
+[Running Spark in Standalone Mode](https://spark.apache.org/docs/latest/spark-standalone.html)
+
+```bash
+# starting standalone cluster 
+./sbin/start-worker.sh cluster_url
+
+# teminate cluster
+./sbin/stop-workder.sh
+./sbin/stop-master.sh
+```
+
+```python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+        .master("spark://HOST:PORT") \
+        .appName("App Name") \
+        .getOrCreate()
+```
+- To make the pyspark pipeline become dynamic, we usually use `argparse` library to parametize the script parsing argument through cli.
+
+```python
+import argparse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--input-x", required=True, help="some context")
+parser.add_argument("--input-y", required=False, help="some context")
+parser.add_argument("--input-z", required=False, help="some context")
+
+args = parser.parse_args()
+
+variable_x = args.input_x
+variable_y = args.input_y
+variable_z = args.input_z
+```
+- Practically, we usually don't specify components, like cluster URL, number or spec of executors, and etc. in hard-coded behavior in the scipt, instead we parsing through airflow or something else to **submit the job** to the spark cluster.
+
+- spark-submit - Example
+    ```bash
+    ./spark-submit \
+        --master ${URL}
+        --py-files path/to/my/egg.egg driver.py \
+            --input-x 1 \
+            --input-y 2 \
+            --input-z 3
+    ```
 
 
+### 6.3 Setting up a Dataproc Cluster (Running Spark in Cloud)
+- In the course, Alexey demonstrated to create a dataproc cluster manually through GCP UI, and submitted a job by copying the pyspark script from a local machine to GCS, and then made the cluster do the job using the script with additional any arguments required.
+- In practical, we wouldn't do these steps manually, instead automate it like, from airflow or spark-submit operator or terminal. Check it [Here](https://cloud.google.com/dataproc/docs/guides/submit-job).
+- A job that dataproc usually do is transforming data from gcs to gcs, not related with BigQuery or data warehouse.
 
-### 6.3 Setting up a Dataproc Cluster
+### 6.4 Connecting Spark to BigQuery
+- In the course, Alexey demonstrated how to manually submit a job to Spark to create a table in BigQuery as a native table referring to [official documentation here](https://cloud.google.com/dataproc/docs/tutorials/bigquery-connector-spark-example)
+---
