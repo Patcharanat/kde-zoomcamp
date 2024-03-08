@@ -1,0 +1,14 @@
+kde_dbt:
+  outputs:
+    dev:
+      dataset: kde-dbt
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      keyfile: .
+      location: US
+      method: service-account
+      priority: interactive
+      project: xxx
+      threads: 4
+      type: bigquery
+  target: dev
