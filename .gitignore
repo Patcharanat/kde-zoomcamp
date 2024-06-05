@@ -12,3 +12,5 @@ de_zoomcamp.ipynb
 logs
 plugins
 config
+
+.ipynb_*
