@@ -162,7 +162,7 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 | light weight | data-sci lib included as default|
 | Pure Python Project | Accept Multi-language Project |
 
-- To set mlflow tracker; go to notebook developing ML model
+- To set mlflow tracker, go to notebook developing ML model
     ```python
     import mlflow
 
@@ -190,3 +190,84 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 
 ## 2.3 Experiment tracking with MLflow
+- Using tag is useful when you monitor the experiment and filter the model
+- Using `compare` feature to visualize correlation of hyperparameters combination from search space that result the metric we specified.
+- mlflow `autolog`
+
+## 2.4 Model Management
+- To avoid error prone by manually write it down somewhere or create confusing folders to contain different versions of model, use model logging from MLflow.
+- log model
+    1. `log artifact`, considering your model as another artifact from the run. It's not quite very useful.
+        ```python
+        # import mlflow
+        import pickle
+
+        # mlflow.set_tracking_uri("sqlite:///mlflow.db") # it will try to save artifact to this db
+        # mlflow.set_experiment("custom-experiment-name")
+        
+        # develop your model in the notebook with mlflow lib
+        # with mlflow.start_run():
+            
+            # mlflow.set_tag("developer", "dev_name") # this may be useful for a large team
+            # mlflow.log_params("train-data-path", "./path/to/data.parquet")
+            # mlflow.log_params("val-data-path", "./path/to/data.parquet")
+
+            # alpha = 0.1
+            # mlflow.log_params("alpha", alpha)
+            
+            # lr = model(alpha)
+            # lr.fit(X_train, y_train)
+
+            # y_pred = lr.predict(X_val)
+            # rmse = mean_squared_error(y_val, y_pred, squared=False)
+            # mlflow.log_metric("rmse", rmse)
+
+            # save the model
+            with open("models/lin_reg.bin", "wb") as f:
+                pickle.dump(lr, f)
+            f.close()
+
+            mlflow.log_artifact(local_path="models/lin_reg.bin", artifact_path="model_pickle/")
+        ```
+        - And now, you can see your local saved model in MLflow UI in "Artifacts" section. (we save the local saved model to MLflow *Artifacts*)
+    2. `log model`, store more information about the model, and be later loaded easily.
+        ```python
+        # import mlflow
+
+        # mlflow.set_tracking_uri("sqlite:///mlflow.db") # it will try to save artifact to this db
+        # mlflow.set_experiment("custom-experiment-name")
+        
+        # develop your model in the notebook with mlflow lib
+        # with mlflow.start_run():
+            
+            # mlflow.set_tag("developer", "dev_name") # this may be useful for a large team
+            # mlflow.log_params("train-data-path", "./path/to/data.parquet")
+            # mlflow.log_params("val-data-path", "./path/to/data.parquet")
+
+            # alpha = 0.1
+            # mlflow.log_params("alpha", alpha)
+            best_params = {
+                "learning_rate": 0.06,
+                "max_depth": 30,
+                "min_child_weight": 1.06,
+                # etc
+            }
+
+            mlflow.log_params(best_params)
+            
+            # lr = model(alpha)
+            # lr.fit(X_train, y_train)
+
+            # y_pred = lr.predict(X_val)
+            # rmse = mean_squared_error(y_val, y_pred, squared=False)
+            # mlflow.log_metric("rmse", rmse)
+
+            booster = xgb.XGBoostClassifier(...)
+            mlflow.xgboost.log_model(booster, "models_mlflow")
+        ```
+        - The model is not xgboost, but the tutorial is. MLflow has multiple supported library to work with "log_model", check it out here: https://mlflow.org/docs/latest/models.html
+        - Run, then check the UI, you will see the latest train model's detail is very well logged with parameters, metrics, saved model, and even project dependencies (as we specify in `conda` or `requirements.txt`)
+        - In model folder detail, it will contain code snippet of how the saved model can be used or called from MLflow to predict on any new data.
+
+## 2.5 Model Registry
+
