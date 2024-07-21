@@ -14,3 +14,7 @@ plugins
 config
 
 .ipynb_*
+
+pyenv
+
+mlflow.db
