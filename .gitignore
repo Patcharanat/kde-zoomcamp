@@ -8,7 +8,11 @@ variables_tf_backup.txt
 zoomcamp
 
 de_zoomcamp.ipynb
+.ipynb_*
 
 logs
 plugins
 config
+
+.venv
+pyenv
