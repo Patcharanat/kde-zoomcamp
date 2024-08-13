@@ -15,6 +15,8 @@ General 3 stages of Machine Learning Project
 - [2.1 Experiment Tracking Intro](#21-experiment-tracking-intro-mlflow)
 - [2.2 Getting started with MLflow](#22-getting-started-with-mlflow)
 - [2.3 Experiment tracking with MLflow](#23-experiment-tracking-with-mlflow)
+- [2.4 Model Management](#24-model-management)
+- [2.5 Model Registry](#25-model-registry)
 
 ## 1.2 Environment Preparation
 
@@ -271,3 +273,165 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ## 2.5 Model Registry
 
+Model Registry is a place in which all the models that are production-ready should be stored (it do not deploy anything).
+
+Tracking Server (model run 1/2/3) >> ***Register Model*** >> Model Registry (staging/production/archive)
+
+- promoting different model to the same model name, resulting in the new version of the model in the registry
+- we can assign the stage for the models such as `Staging`, `Production`, `Archive` from `None` via mlflow UI
+
+### MLflow Client
+We are able to use MlflowClient class to interact with object in Mlflow besides WebUI
+```python
+from mlflow.tracking import MlflowClient
+
+# instead of sqlite for local, this can be URL for remote server
+MLFLOW_TRACKING_URI = "sqlite:///mlflow.db"
+
+client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+
+# request general detail
+client.list_experiments()
+
+client.create_experiment(name="custom-name-experiment")
+
+# from mlflow.entities import ViewType
+runs = client.search_runs(
+    experiment_ids = '1'
+    filter_string = "",
+    # filter_string = "metrics.rmse < 6.8", # filtering
+    run_view_type = ViewType
+    max_results=5,
+    order_by=["metrics.rmse ASC"]
+)
+
+for run in runs:
+    print(f"run id: {run.info.run_id}, rmse: {run.data.metrics['rmse']:.4f}")
+
+
+# promoting to model registry
+import mlflow
+
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+# specify model performance condition
+runs = client.search_runs(
+    experiment_ids = '1'
+    filter_string = "metrics.rmse < 6.8", # filtering
+    run_view_type = ViewType
+    max_results=5,
+    order_by=["metrics.rmse ASC"]
+)
+
+# register the model
+run_id = runs[0]
+model_uri = f"runs:/{run_id}/model"
+mlflow.register_model(
+    model_uri=model_uri,
+    name="register-model-name"
+)
+
+
+# transitioning a model from one stage to another
+client.list_register_models()
+
+model_name = "register-model-name"
+latest_versions = client.get_latest_versions(name=model_name)
+
+# check stage
+for version in latest_versions:
+    print(f"version: {version.version}, stage: {version.current_stage}")
+
+# transition the model
+model_version = 4
+new_stage = "Staging"
+client.transition_model_version_stage(
+    name=model_name,
+    version=model_version,
+    stage=new_stage,
+    archive_existing_versions=False
+)
+
+# annotate the model
+client.update_model_version(
+    name=model_name,
+    version=model_version,
+    description=f"The model version {model_version} was transitioned to {new_stage}"
+)
+
+
+# using components on Mlflow via Client in action!
+# define utils function
+def read_dataframe(file_name):
+    df = pd.read_csv(filename)
+    
+    df.lpep_dropoff_datetime = pd.to_datetime(df.lpep_dropoff_datetime)
+    df.lpep_pickup_datetime = pd.to_datetime(df.lpep_pickup_datetime)
+    
+    df["duration"] = df.lpep_dropoff_datetime - df.lpep_pickup_datetime
+    df.duration = df.duration.apply(lambda td: td.total_seconds() / 60)
+
+    df = df[(df.duration >= 1) & (df.duration <= 60>)]
+
+    categorical = ["PULocationID", "DOLocationID"]
+    df[categorical] = df[categorical].astype(str)
+    
+    return df
+
+def preprocess(df, dv):
+    # for ny-taxi dataset as shown in the video
+    df['PU_DO'] = df['PULocationID'] + '_' + df['DOLocationID']
+    categorical = ['PU_DO']
+    numerical = ['trip_distance']
+    train_dicts = df[categorical + numerical].to_dict(orient='records')
+    return dv.transform(train_dicts)
+
+def test_model(stage, X_test, y_test, name='register-model-name'):
+    model = mlflow.pyfunc.load_model(f"models:/{name}/{stage}")
+    y_pred = model.predict(X_test)
+    return {"rmse": mean_squared_error(y_test, y_pred, squared=False)}
+
+# load data
+df = read_dataframe(filename)
+
+# load fitted vectorizer to local
+client.download_artifact(
+    run_id = run_id,
+    path='preprocessor',
+    dst_path='.'
+) # assume this will provide output path: 'preprocessor_path.b'
+
+# assign preprocessor
+with open("preprocessor_path.b", "rb") as f_in:
+    dv = pickle.load(f_in)
+
+X_test = preprocess(df, dv)
+
+target = "duration"
+y_test = df[target].values
+
+# inference
+score = test_model(name=model_name, stage="Staging", X_test=X_test, y_test=y_test)
+
+print(score_dict)
+
+# assume we're happy with the model in staging and want to transition to 'Production'
+# transition the model
+client.transition_model_version_stage(
+    name=model_name,
+    version=4,
+    stage='Production',
+    archive_existing_versions=True
+)
+```
+
+In conclusion
+The model registry component is a centralized mode lstore, set of APIs and a UI to collaboratively manage the full lifecycle of an MLflow Model.
+
+It provides:
+- Model lineage
+- Model versioning
+- Stage transitions
+- Annotations
+
+## 2.6 MLflow in practice
