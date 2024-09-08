@@ -17,6 +17,8 @@ General 3 stages of Machine Learning Project
 - [2.3 Experiment tracking with MLflow](#23-experiment-tracking-with-mlflow)
 - [2.4 Model Management](#24-model-management)
 - [2.5 Model Registry](#25-model-registry)
+- [2.6 MLflow in practice](#26-mlflow-in-practice)
+- [2.7 MLflow Benefits, Limitations, and Alternatives](#27-mlflow-benefits-limitations-and-alternatives)
 
 ## 1.2 Environment Preparation
 
@@ -435,3 +437,71 @@ It provides:
 - Annotations
 
 ## 2.6 MLflow in practice
+### Configuring MLflow
+- Backend Store
+    - Local Filesystem
+    - SQLAlchemy Compatible DB (e.g. SQLite)
+- Artifacts store
+    - Local Filesystem
+    - remote (e.g. s3 bucket)
+- Tracking Server
+    - no tracking server
+    - localhost
+    - remote
+
+Consider these different scenarios to adopt MLflow:
+1. A single data scientist working on an ML model.
+    - Configurations
+        - Backend Store: local filesystem
+        - Artifacts Store: local filesystem
+        - Tracking Server: no need
+    - Remark
+        - Even we don't enable tracking server, we are still able to use `mlflow ui`.
+        - `mlflow ui` search the current working directory for *"mlrun"*. In case you re-structure your project, you must `cd` to the working directory that contains *mlrun* with a custom path, and then `mlflow ui` again.
+        - Tips: In case you can't access `localhost` with access denied in web browser, just clear cookies and refresh the page.
+2. cross-functional team working on an ML model (even with one data scientist to show the progress or tracking performance for the team).
+    - Configurations
+        - Backend Store: local.server
+        - Artifacts Store: sqlite databse / Cloud
+        - Tracking Server: localfile system
+    - Remark:
+        - You can run the tracking server locally by
+            ```bash
+            # mlflow server --backend-store-uri <backend-uri> --default-artifact-root <artifacts-path>
+            mlflow server --backend-store-uri sqlite://backend.db --default-artifact-root ./artifacts_local
+            ```
+        - Setting `set_tracking_uri` would be localhost URL with a specific port
+3. Multiple data scientists working on multiple ML models.
+    - Configurations
+        - Backend Store: postgres database (RDS)
+        - Artifacts Store: Data Lake (S3 or GCS or blob storage)
+        - Tracking Server: remote server (could be EC2)
+    - Remark:
+        - Setting up EC2 instance,
+            ```bash
+            sudo yum update
+            pip3 install mlflow boto3 psycopg2-binary
+            aws configure # For AWS authentication
+            mlflow server -h 0.0.0.0 -p 5000 --backend-store-uri postgres://DB_USER:DB_PASSWORD@DB_ENDPOINT:5432/DB_NAME --default-artifact-root s3://S3_BUCKET_NAME
+            ```
+            - go to URL: "http://<EC2_PUBLIC_DNS>:5000"
+        - For AWS, you need "key-pair" to login through ssh into the instance as a credential.
+        - Connection between RDS and EC2
+            - In order to make EC2 can communicate with RDS, you need to add an inbound rule with PostgreSQL type, and the same security group with EC2's.
+            - Copy RDS's endpoint and initialize session through EC2 with the MLflow command replaced backend-store-uri with created user, password and endpoint of the created RDS.
+        - Use **Public IPv4 DNS** to connect to deployed MLflow.
+        - `mlflow.get_tracking_uri()` is a good way to check if we specified a correct tracking server host's public DNS in setting uri part (`mlflow.set_tracking_uri(f"http://{TRACKING_SERVER_HOST}:5000")`).
+        - AWS resources:
+            - instances/cluster: EC2
+            - Data Lake: S3
+            - Backend Database: RDS
+For each run:
+- Set Experiment
+- Start run
+- Log
+    - Log Params
+    - Log metric
+    - Log model
+
+## 2.7 MLflow Benefits, Limitations, and Alternatives
+*In progress . . .*
