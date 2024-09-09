@@ -19,6 +19,7 @@ General 3 stages of Machine Learning Project
 - [2.5 Model Registry](#25-model-registry)
 - [2.6 MLflow in practice](#26-mlflow-in-practice)
 - [2.7 MLflow Benefits, Limitations, and Alternatives](#27-mlflow-benefits-limitations-and-alternatives)
+- [3.0.1 Machine Learning Pipeline](#301-machine-learning-pipeline)
 
 ## 1.2 Environment Preparation
 
@@ -504,4 +505,31 @@ For each run:
     - Log model
 
 ## 2.7 MLflow Benefits, Limitations, and Alternatives
-*In progress . . .*
+- Remote Tracking Server
+    - Benefits
+        - Sharing experiments with other data scientist
+        - Collaborate with others (MLE, SRE) to build and deploy models
+        - Give more visibility of the DS effort
+    - Potential Issues
+        - Security
+            - Restrict access to the server (e.g. access through VPN)
+        - Scalability
+        - Isolation
+            - All the artifacts will get messy quickly without stardard for naming experiment when working in multiple teams or tags, so it should be well-managed to make your artifact available to exploit.
+            - All artifacts should be managed by different s3 bucket live on different account to avoid access restriction.
+    - Limitations (and when not to use it)
+        - Authentication & Users
+            - The open source version of MLflow doesn't provide any sort of authentication
+        - Data versioning
+            - For the sake of reproducibility, data versioning is important, but MLflow doesn't provide build-in solution for the open source version.
+        - Model/Data Monitoring & Alerting
+            - This is out of scope of MLflow.
+- MLflow alternatives
+    - Neptune
+    - Comet
+    - Weights & Biases
+    - and more
+
+## 3.0.1 Machine Learning Pipeline
+*A.K.A. Workflow Orchestration*
+- A Sequence of steps to reproduce something (and for ML pipeline, of courc, reproducing an ML model)
