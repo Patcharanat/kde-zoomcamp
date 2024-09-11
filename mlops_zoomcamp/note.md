@@ -20,6 +20,8 @@ General 3 stages of Machine Learning Project
 - [2.6 MLflow in practice](#26-mlflow-in-practice)
 - [2.7 MLflow Benefits, Limitations, and Alternatives](#27-mlflow-benefits-limitations-and-alternatives)
 - [3.0.1 Machine Learning Pipeline](#301-machine-learning-pipeline)
+- [3.0.2-3.5.x Setup Mage and Hands-on](#302-35x-setup-mage-and-hands-on)
+- [4.1 Model Deployment Overview](#41-model-deployment-overview)
 
 ## 1.2 Environment Preparation
 
@@ -533,3 +535,46 @@ For each run:
 ## 3.0.1 Machine Learning Pipeline
 *A.K.A. Workflow Orchestration*
 - A Sequence of steps to reproduce something (and for ML pipeline, of courc, reproducing an ML model)
+- There're multiple tools can be mentioned here, some could be for general purpose, and some could be more specific to ML Pipeline.
+    - More General
+        - Airflow
+        - Prefect
+        - Mage
+    - More specific to ML
+        - Kubeflow pipelines
+        - MLflow pipelines
+
+## 3.0.2-3.5.x Setup Mage and Hands-on
+TBD
+
+## 4.1 Model Deployment Overview
+- Design, Train (Experiment tracking + Training Pipeline), ***Operate***
+- Types of deployment depends on requirement or how output would be used
+    1. **Batch Deployment / Offline Deployment**
+        - Model is not up and running all the time, we just apply our model to new data regularly (hourly, daily, monthly, etc.)
+    2. **Online Deployment**
+        - The model is always available, running up all the time
+        - sub-types of online deployment
+            1. Web Services (through HTTP request)
+            2. Streaming (through stream of events)
+
+### 1. Batch Deployment
+- Database (historical data) -> ML services -> Database containing prediction
+- Real-time Prediction is not necessary
+- Example use case:
+    - Marketing aspect, in term of churn prediction. We might not have to know immediately if the user is going to churn at the time, but we might need to predict whether the user is likely to churn and then we might give them some incentive after. It's just fine with daily batch or longer time interval for schedule.
+
+### 2. Online Deployment
+1. Web Service
+    - The model needs to be up and running all the time, because user might want to decide action from prediction
+    - Example use case:
+        - Taxi App might have a backend service that communicates with ride duration prediction service. User may want to know ride duration, or how much it will cost immediately before decide to request the taxi from the app.
+2. Streaming Service
+    - consist of producer and consumer, producer push some event to an event stream and then consumer read from this stream and react to these events by doing something.
+    - Backend now become the producer sending events to ML services which is independent consumers of that event stream.
+        - One thing in the video that's interesting is web service and streaming service can be in the same system, but used in different purpose. For example, web service may handle the ride duration prediction first for user decision to request the taxi, but after user request, we might need more accurate model to infer ride duration for the user.  
+    - The key difference between streaming service and web service is that streaming service (producer) pushs the event to the event stream and it doesn't really care what will be happened after, because producer and consumer don't have explicit connection between them ,unlike webservice which rely on API.
+    - Example use cases:
+        - Uploading Youtube video and searching for inappropriate content, "content moderation".
+        - Recommendation services after the video upload to Youtube.
+        ![mlops_streaming_service_example](./picture/mlops_streaming_service_example.png)
