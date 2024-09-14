@@ -22,6 +22,8 @@ General 3 stages of Machine Learning Project
 - [3.0.1 Machine Learning Pipeline](#301-machine-learning-pipeline)
 - [3.0.2-3.5.x Setup Mage and Hands-on](#302-35x-setup-mage-and-hands-on)
 - [4.1 Model Deployment Overview](#41-model-deployment-overview)
+- [4.2 Web-services: Deploying models with Flask and Docker](#42-web-services-deploying-models-with-flask-and-docker)
+- [4.3 Web-services: Getting the models from the model registry (MLflow)](#43-web-services-getting-the-models-from-the-model-registry-mlflow)
 
 ## 1.2 Environment Preparation
 
@@ -578,3 +580,97 @@ TBD
         - Uploading Youtube video and searching for inappropriate content, "content moderation".
         - Recommendation services after the video upload to Youtube.
         ![mlops_streaming_service_example](./picture/mlops_streaming_service_example.png)
+
+## 4.2 Web-services: Deploying models with Flask and Docker
+1. Example of Flask app
+    ```python
+    # predict.py
+    import pickle
+    from flask import Flask, request, jsonify # request not requests
+
+
+    with open("model/lin_reg.bin", "rb") as f_in:
+        (vectorizer, model) = pickle.load(f_in)
+
+    def pre_processing_input(input_features):
+        features = {}
+        # some feature engineering process, encoding, and transformation
+        # features["feature_A"] = ...
+        # features["feature_B"] = ...
+        # features["feature_C"] = ...
+        return features
+
+    def predict(features):
+        X = vectorizer.transform(features)
+        y_pred = model.predict(X)
+        return y_pred[0] # [0] for float (item in Sequence), since y_pred: numpy.array
+
+
+    app = Flask("app-name")
+
+    @app.route('/predict', method=['POST'])
+    def predict_endpoint():
+        input_features = request.get_json()
+
+        features = pre_processing_input(input_features)
+        y_pred = predict(features)
+
+        result = {
+            "target_feature": y_pred
+        }
+
+        return jsonify(result)
+
+
+    if __name__ = "__main__": # this block only used for local development (run locally)
+        app.run(debug=True, host="0.0.0.0", port=9696)
+    # for producttion, we use gunicorn
+    ```
+    - gunicorn
+        ```bash
+        gunicorn --bind=0.0.0.0:9696 predict:app
+        ```
+
+2. Example of request test script
+    ```python
+    # test.py
+    import requests
+
+
+    URL = "http://localhost:9696/predict" # endpoint name
+    input_features = {
+        "feature_A": 10   
+        "feature_B": 50
+        "feature_C": "x"
+    }
+
+    response = requests.post(URL, json=input_features)
+    print(response.json())
+    ```
+
+3. Example of Dockerfile for Flask app
+    ```dockerfile
+    FROM python:3.9.7-slim # light-weighted python version
+
+    RUN pip install -U pip # some module required the latest pip v. e.g. xgboost
+    RUN pip install pipenv # virtual py env
+
+    WORKDIR /app
+
+    COPY [ "Pipfile", "Pipfile.lock", "./" ]
+
+    RUN pipenv install --system --deploy
+
+    COPY [ "predict.py", "lin_reg.bin", "./" ]
+
+    ENTRYPOINT [ "gunicorn", "--bind=localhost:9696", "predict:app" ]
+    ```
+- ***Remark***: This chapter often mentioned ML-Zoomcamp about how to productionize Docker Containerized application, such as using **Kubernetes**, or AWS Elastic Beanstalk. Maybe, it's a good idea to check it out:
+    - [Machine Learning Zoomcamp 2022 Youtube Playlist](https://www.youtube.com/watch?v=MqI8vt3-cag&list=PL3MmuxUbc_hIhxl5Ji8t4O6lPAOpHaCLR)
+    - [Chapter 5: Deploying Machine Learning Models](https://www.youtube.com/watch?v=agIFak9A3m8&list=PL3MmuxUbc_hIhxl5Ji8t4O6lPAOpHaCLR&index=49)
+        - [Material: chapter-05-deployment](https://github.com/alexeygrigorev/mlbookcamp-code/tree/master/chapter-05-deployment)
+    - [Chapter 10: Kubernetes and Tensorflow Serving](https://www.youtube.com/watch?v=mvPER7YfTkw&list=PL3MmuxUbc_hIhxl5Ji8t4O6lPAOpHaCLR&index=91)
+        - [Material: chapter-09-kubernetes](https://github.com/alexeygrigorev/mlbookcamp-code/tree/master/chapter-09-kubernetes)
+
+## 4.3 Web-services: Getting the models from the model registry (MLflow)
+*In progress. . .*
