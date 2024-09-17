@@ -24,6 +24,7 @@ General 3 stages of Machine Learning Project
 - [4.1 Model Deployment Overview](#41-model-deployment-overview)
 - [4.2 Web-services: Deploying models with Flask and Docker](#42-web-services-deploying-models-with-flask-and-docker)
 - [4.3 Web-services: Getting the models from the model registry (MLflow)](#43-web-services-getting-the-models-from-the-model-registry-mlflow)
+- [4.4 Streaming: Deploying models with Kinesis and Lambda](#44-streaming-deploying-models-with-kinesis-and-lambda)
 
 ## 1.2 Environment Preparation
 
@@ -616,7 +617,8 @@ TBD
         y_pred = predict(features)
 
         result = {
-            "target_feature": y_pred
+            "target_feature": y_pred,
+            # "model_version": RUN_ID
         }
 
         return jsonify(result)
@@ -626,6 +628,7 @@ TBD
         app.run(debug=True, host="0.0.0.0", port=9696)
     # for producttion, we use gunicorn
     ```
+    - *Remark: it's a good practice to include model version it json prediction output*
     - gunicorn
         ```bash
         gunicorn --bind=0.0.0.0:9696 predict:app
@@ -673,4 +676,85 @@ TBD
         - [Material: chapter-09-kubernetes](https://github.com/alexeygrigorev/mlbookcamp-code/tree/master/chapter-09-kubernetes)
 
 ## 4.3 Web-services: Getting the models from the model registry (MLflow)
-*In progress. . .*
+In the video, Alexey initialized MLflow server on a remote machine (EC2), and using s3 for artifact store and sqlite as a backend database.
+```bash
+mlflow server --backend-store-uri=sqlite://mlflow.db --default-artifact-root=s3://artifact-bucket/subpath
+``` 
+### Using Tracking server as a model registry
+- In the notebook, DS might log the developed model and upload to the artifact bucket. And what we're gonna do is to retrieve the model from the model registry (artifact bucket), not directly loading from local machine.
+```python
+# import pickle
+# with open("lin_reg.bin", "rb") as f_in:
+#     (dv, model) = pickle.load(f_in)
+
+# see the example to load from mlflow web ui
+import mlflow
+
+# set connection to tracking server for retrieving the model
+MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+# set properties
+RUN_ID = "xxxx"
+logged_model = f"runs:/{RUN_ID}/model"
+model = mlflow.pyfunc.load_model(logged_model)
+
+# we might need any other artifact, such as encoder, decoder, or vectorizer
+from mlflow.tracking import MlflowClient
+
+MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
+client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+
+ARTIFACT_PATH = client.download_artifacts(run_id=RUN_ID, path="dict_vertorizer.bin")
+with open(ARTIFACT_PATH, "rb") as f_in:
+    vertorizer = pickle.load(f_in)
+```
+- you might notice that loading vectorizer and model separately is quite a mess, we can clean this up by coupling the model and the vectorizer into a (sklearn) pipeline, and log it as a model. So, we can store this pipeline in the registry and don't need to store the artifact of vertorizer additionally.
+```python
+from sklearn.pipeline import make_pipeline
+
+with mlflow.start_run():
+    # params = {...}
+    mlflow.log_params(params)
+
+    pipeline = make_pipeline(
+        dv = DictVectorizer(),
+        model = RandomForestRegressor(**params)
+    )
+
+    # the comment line is an old version
+
+    # X_train = dv.fit_transform(dict_train)
+    # model.fit(X_train, y_train)
+    pipeline.fit(dict_train, y_train)
+
+    # X_val = dv.transform(dict_val)
+    # y_pred = model.predict(X_val)
+    y_pred = pipeline.predict(dict_val)
+
+
+    rmse = mean_squared_error(y_pred, y_val, squared=False)
+    mlflow.log_metric("rmse": rmse)
+
+    # now, we log pipeline as a model 
+    mlflow.sklearn.log_model(pipeline, artifact_path="model")
+```
+
+### Using data lake as a model registry
+- Suppose, something could happen with the tracking server and cause it unavailable, we may not need our prediction service getting down also. So, we could use data lake as a model registry
+```python
+# In MLflow UI model serving has full path of data lake storing model and artifact 
+
+# we don't need to connect tracking server anymore, and use data lake path instead.
+# MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
+# mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+# set properties
+RUN_ID = "xxxx"
+# logged_model = f"runs:/{RUN_ID}/model"
+logged_model = f"s3://mlflow-models-alexey/1/{RUN_ID}/artifacts/model"
+model = mlflow.pyfunc.load_model(logged_model)
+```
+
+## 4.4 Streaming: Deploying models with Kinesis and Lambda
+*In-progress . . .*
