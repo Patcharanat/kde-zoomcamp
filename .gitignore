@@ -7,18 +7,18 @@ variables_tf_backup.txt
 
 zoomcamp
 
-# python notebook
+# python notebook & environment
 de_zoomcamp.ipynb
 .ipynb_*
+pyenv
+.venv
+__pycache__
 
 # airflow
 logs
 plugins
 config
 
-# python environment
-pyenv
-.venv
 
 # local database
 mlflow.db

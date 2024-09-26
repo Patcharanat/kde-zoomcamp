@@ -1,0 +1,10 @@
+KAFKA_PRODUCER:
+    BOOTSTRAP_SERVICES: ["localhost:9092"]
+    KAFKA_TOPIC: "random_user_json"
+    # INPUT_DATA_PATH: "" # we use randomuser api instead.
+
+KAFKA_CONSUMER:
+    BOOTSTRAP_SERVICES: ["localhost:9092"]
+    KAFKA_TOPIC: ["random_user_json"]
+    auto_offset_reset: "earliest"
+    enable_auto_commit: true
