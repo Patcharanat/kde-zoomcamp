@@ -1,9 +1,9 @@
 version: '2.1'
 
-networks:
-  default:
-    name: kafka-spark-network
-    external: true
+# networks:
+#   default:
+#     name: kafka-spark-network
+#     external: true
 services:
   zoo1:
     image: confluentinc/cp-zookeeper:7.3.2

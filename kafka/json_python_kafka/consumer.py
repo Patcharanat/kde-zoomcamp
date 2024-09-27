@@ -11,7 +11,7 @@ from schema import RandomUserSchema
 
 
 if __name__ == "__main__":
-    read_config: dict = ConfigurationReader(config_path="config.yaml").get_config()
+    read_config: dict = ConfigurationReader(config_path="config.yaml").get_config() # absoulte path to config may required
     consumer_config: dict = read_config.get("KAFKA_CONSUMER", {})
 
     KAFKA_TOPICS: list[str] = consumer_config.get("KAFKA_TOPIC")
