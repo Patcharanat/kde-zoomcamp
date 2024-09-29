@@ -90,3 +90,11 @@ services:
 - `kafka-rest` is optional, but helping us debugging via REST API
 - `networks` is also optional for kafka alone, but we need it to communicate with spark
 - **Some important parameter to config that're worth mentioned and more researched are `KAFKA_LISTENERS` and `KAFKA_ADVERTISED_LISTENERS` used for configuring how kafka communicate within docker and access to the broker outside**
+
+
+## More resources on Kafka Python
+- [Kafka-Python explained in 10 lines of code](https://towardsdatascience.com/kafka-python-explained-in-10-lines-of-code-800e3e07dad1)
+- [Apache Kafka ฉบับผู้เริ่มต้น #1: Hello Apache Kafka](https://medium.com/linedevth/apache-kafka-%E0%B8%89%E0%B8%9A%E0%B8%B1%E0%B8%9A%E0%B8%9C%E0%B8%B9%E0%B9%89%E0%B9%80%E0%B8%A3%E0%B8%B4%E0%B9%88%E0%B8%A1%E0%B8%95%E0%B9%89%E0%B8%99-1-hello-apache-kafka-242788d4f3c6)
+
+## Appendix
+- [Random User API - Mock up Data Generator](https://randomuser.me/documentation#intro)
